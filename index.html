@@ -1,30 +1,64 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="UTF-8">
-    <title>Remoteo Receiver</title>
-    <script src="//www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
-    <script>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Remoteo Receiver</title>
+  <script src="https://www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
+  <style>
+    /* Optionally hide default UI by CSS */
+    cast-media-player::part(control-bar) {
+      display: none !important;
+    }
+  </style>
+  <script>
+    window.addEventListener('load', () => {
       const context = cast.framework.CastReceiverContext.getInstance();
       const playerManager = context.getPlayerManager();
 
-      // ✅ Block other devices from remote controlling this session
-      context.start({
-        disableRemoteControl: true,
-        disableIdleTimeout: false, // set to true if you want it to never auto-disconnect
-      });
+      // BEFORE starting, remove commands you don't want
+      playerManager.removeSupportedMediaCommands(cast.framework.messages.Command.SEEK);
+      playerManager.removeSupportedMediaCommands(cast.framework.messages.Command.PAUSE);
+      playerManager.removeSupportedMediaCommands(cast.framework.messages.Command.STOP);
+      // You can remove other commands similarly if needed
 
-      // ✅ Log session info (for testing)
+      // Optionally enforce only those supported commands
+      const options = new cast.framework.CastReceiverOptions();
+      options.disableRemoteControl = true;
+      options.disableIdleTimeout = false;
+      options.enforceSupportedCommands = true;
+
+      context.start(options);
+
+      // Interceptor example (optional)
+      playerManager.setMessageInterceptor(
+        cast.framework.messages.MessageType.SEEK,
+        (seekRequestData) => {
+          // If SEEK isn’t supported, block it
+          if (!(playerManager.getSupportedMediaCommands() & cast.framework.messages.Command.SEEK)) {
+            const err = new cast.framework.messages.ErrorData();
+            err.reason = cast.framework.messages.ErrorReason.NOT_SUPPORTED;
+            err.type = cast.framework.messages.ErrorType.INVALID_REQUEST;
+            return err;
+          }
+          return seekRequestData;
+        }
+      );
+
+      // Logging
       playerManager.setMessageInterceptor(
         cast.framework.messages.MessageType.LOAD,
         (loadRequestData) => {
-          console.log('Received LOAD request:', loadRequestData);
+          console.log('LOAD request:', loadRequestData);
           return loadRequestData;
         }
       );
-    </script>
-  </head>
-  <body>
-    <h3 style="color:#888; font-family:sans-serif;">Remoteo Cast Receiver Active</h3>
-  </body>
+    });
+  </script>
+</head>
+<body>
+  <h3 style="color:#888; font-family:sans-serif;">
+    Remoteo Cast Receiver Active
+  </h3>
+  <cast-media-player></cast-media-player>
+</body>
 </html>
