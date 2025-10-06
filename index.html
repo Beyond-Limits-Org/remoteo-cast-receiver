@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Remoteo Receiver</title>
+    <script src="//www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
+    <script>
+      const context = cast.framework.CastReceiverContext.getInstance();
+      const playerManager = context.getPlayerManager();
+
+      // ✅ Block other devices from remote controlling this session
+      context.start({
+        disableRemoteControl: true,
+        disableIdleTimeout: false, // set to true if you want it to never auto-disconnect
+      });
+
+      // ✅ Log session info (for testing)
+      playerManager.setMessageInterceptor(
+        cast.framework.messages.MessageType.LOAD,
+        (loadRequestData) => {
+          console.log('Received LOAD request:', loadRequestData);
+          return loadRequestData;
+        }
+      );
+    </script>
+  </head>
+  <body>
+    <h3 style="color:#888; font-family:sans-serif;">Remoteo Cast Receiver Active</h3>
+  </body>
+</html>
