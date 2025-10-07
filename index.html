@@ -1,61 +1,46 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <title>Remoteo Receiver</title>
-    <script src="https://www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
-    <script>
-      const context = cast.framework.CastReceiverContext.getInstance();
-      const playerManager = context.getPlayerManager();
+<head>
+  <meta charset="UTF-8" />
+  <title>Remoteo Receiver</title>
+  <script src="https://www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
+  <script>
+    const context = cast.framework.CastReceiverContext.getInstance();
+    const playerManager = context.getPlayerManager();
 
-      // ✅ Receiver Options
-      const options = new cast.framework.CastReceiverOptions();
-      options.disableRemoteControl = true;
-      options.disableIdleTimeout = false;
+    const options = new cast.framework.CastReceiverOptions();
+    options.disableRemoteControl = true;
+    options.disableIdleTimeout = false;
+    options.customNamespaces = {
+      "urn:x-cast:com.remoteo.control": {}
+    };
+    // enforce only these commands
+    options.supportedCommands = 0;  // no default media commands
 
-      // ✅ Custom namespace to communicate only with Remoteo app
-      options.customNamespaces = {
-        "urn:x-cast:com.remoteo.control": {},
-      };
+    // block any PLAY / PAUSE / SEEK
+    const block = (msg) => {
+      console.warn("Blocked command:", msg);
+      const err = new cast.framework.messages.ErrorData();
+      err.type = cast.framework.messages.ErrorType.INVALID_REQUEST;
+      err.reason = cast.framework.messages.ErrorReason.NOT_SUPPORTED;
+      return err;
+    };
+    playerManager.setMessageInterceptor(cast.framework.messages.MessageType.PLAY, block);
+    playerManager.setMessageInterceptor(cast.framework.messages.MessageType.PAUSE, block);
+    playerManager.setMessageInterceptor(cast.framework.messages.MessageType.SEEK, block);
 
-      // ✅ Block all player commands (Google remote UI disabled)
-      playerManager.setSupportedMediaCommands(0);
+    context.addEventListener(
+      cast.framework.system.EventType.SENDER_CONNECTED,
+      (ev) => {
+        // optionally check senderId or namespace
+        console.log("Sender connected:", ev.senderId);
+      }
+    );
 
-      const block = (msg) => {
-        console.warn(`🚫 Blocked command: ${msg}`);
-        const err = new cast.framework.messages.ErrorData();
-        err.reason = cast.framework.messages.ErrorReason.NOT_SUPPORTED;
-        err.type = cast.framework.messages.ErrorType.INVALID_REQUEST;
-        return err;
-      };
-      [
-        cast.framework.messages.MessageType.PLAY,
-        cast.framework.messages.MessageType.PAUSE,
-        cast.framework.messages.MessageType.SEEK,
-        cast.framework.messages.MessageType.STOP,
-        cast.framework.messages.MessageType.LOAD,
-      ].forEach((type) => playerManager.setMessageInterceptor(type, block));
-
-      // ✅ Allow only your sender (Remoteo)
-      context.addEventListener(
-        cast.framework.system.EventType.SENDER_CONNECTED,
-        (event) => {
-          const senderId = event.senderId || "";
-          if (!senderId.includes("remoteo")) {
-            console.warn("🚫 Unauthorized sender:", senderId);
-            event.sender?.disconnect?.();
-          } else {
-            console.log("✅ Authorized sender connected:", senderId);
-          }
-        }
-      );
-
-      // ✅ Start receiver
-      context.start(options);
-    </script>
-  </head>
-  <body style="background:#111; color:#999; font-family:sans-serif;">
-    <h3>🛰️ Remoteo Cast Receiver Active</h3>
-    <p>No controls available — external senders are blocked.</p>
-  </body>
+    context.start(options);
+  </script>
+</head>
+<body>
+  <h3>Remoteo Receiver</h3>
+</body>
 </html>
